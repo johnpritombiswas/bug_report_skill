@@ -1,90 +1,118 @@
----
-name: qa-issue-formatter
-description: Converts an informal bug description, feature request, enhancement idea, or screenshot/image of a UI problem into two strict, standardized QA outputs — a formatted GitHub issue and a single-row TSV block for pasting into Excel/QA trackers. Use this skill whenever the user describes a bug, glitch, broken feature, crash, or unexpected behavior; requests a new feature or enhancement; uploads a screenshot of a UI issue and asks what's wrong or asks to log it; or explicitly asks to "convert this to a GitHub issue," "log this bug," "write this up for QA," "make a ticket," or similar. Trigger even if the user does not explicitly mention "GitHub issue" or "Excel" — any raw bug/feature description directed at Claude is a candidate for this skill. Always process exactly one issue per invocation.
----
+# Bug Report - GitHub Issue & Excel Format
 
-# QA Issue Formatter
+**Author:** John Pritom Biswas
 
-Converts informal bug reports, feature requests, or enhancement ideas (text and/or images) into two rigidly structured outputs for a QA workflow: a GitHub issue and an Excel-pasteable TSV row.
+A [Claude Skill](https://www.anthropic.com/news/skills) that converts informal bug reports, feature requests, or enhancement ideas — text or screenshots — into two rigidly structured QA outputs:
 
-## Core behavior
+1. A formatted **GitHub issue**
+2. A single-row **TSV block** ready to paste into Excel/Google Sheets QA trackers
 
-- Always produce **exactly two outputs**, in this order, and nothing else:
-  1. The GitHub issue (Markdown)
-  2. The TSV row, inside a ```text code block
-- **No introductory text, no conversational filler, no concluding remarks.** Output starts immediately with the GitHub issue and ends immediately after the closing ``` of the TSV block. Do not say things like "Here's the formatted issue" or "Let me know if you'd like changes."
-- **One issue per response.** If the user describes multiple distinct bugs/features in a single message (or uploads multiple screenshots of unrelated issues), process only the first/most prominent one, then after the TSV block add a single short line (outside the strict output, so this is the one exception to "no concluding remarks"): `Additional issue(s) detected — send separately to process them one at a time.` Do not batch multiple GitHub issues or multiple TSV rows in one response.
-- If images are provided, perform careful visual analysis (broken layout, error states, misaligned elements, wrong data, console errors visible in screenshot, etc.) and fold those specific observations directly into the `Description` and `Actual result` fields of the GitHub issue — never as separate "Observations"/"Analysis"/"Root Cause" headers.
+No preamble, no follow-up chit-chat — just the two outputs, every time.
 
-## Output 1: GitHub Issue
+## Why
 
-Use exactly this structure, with these exact field labels:
+QA teams often need the same messy bug description turned into two different formats: a clean GitHub issue for engineering, and a row in a shared spreadsheet for tracking. Doing this by hand is repetitive and inconsistent. This skill enforces one strict template so every issue — regardless of who wrote the original report — comes out identically structured.
+
+## Installation
+
+1. Download [`bug-report-github-jira-excel-format.skill`](./bug-report-github-jira-excel-format.skill) from this repo (or clone the repo and zip the `bug-report-github-jira-excel-format/` folder yourself).
+2. In Claude, upload/attach the `.skill` file and click **Save skill** on the file card. This installs it into your profile.
+3. It will now trigger automatically whenever you paste a bug/feature description, or when you explicitly ask Claude to "log this bug," "convert this to a GitHub issue," "write this up for QA," etc.
+
+## Usage
+
+Just describe a bug or feature — with or without a screenshot:
 
 ```
-Title: [Brief, descriptive title. Prefix with [Bug], [Feature], or [Enhancement]]
-
-Description: [Short overview of the issue or feature and its impact. Integrate any image-derived analysis, root cause theories, and specific visual observations directly into this paragraph — no separate sections.]
-
-Steps to reproduce / User workflow:
-1. [Step 1]
-2. [Step 2]
-3. [Step 3]
-
-Expected result: [What should happen, or the intended behavior of the new feature]
-
-Actual result: [What is currently happening, or the current system limitation. If images are provided, be highly detailed and list the specific broken elements observed.]
+The save button on the profile page doesn't work when the user has
+unsaved changes, it just spins forever.
 ```
 
-Notes:
-- For feature/enhancement requests (not bugs), "Steps to reproduce" becomes the user workflow that motivates the feature — still numbered steps.
-- Keep the title short (aim for under ~12 words) and always prefixed with `[Bug]`, `[Feature]`, or `[Enhancement]`.
-
-## Output 2: Excel TSV Row
-
-Immediately after the GitHub issue, output a single line inside a ```text code block, with these 13 columns separated by **exactly 12 tab characters** (`\t`) — never spaces, never pipes:
-
-| # | Column | Rule |
-|---|--------|------|
-| 1 | Bug/Feature ID | `TBD` if not provided by user |
-| 2 | Title/Scenario | Same short title as the GitHub issue (no `[Bug]` prefix needed here) |
-| 3 | Module | `TBD` if not specified |
-| 4 | Environment | Always `Web (Chrome, Windows 11)` |
-| 5 | Severity | For bugs: infer (Critical/High/Medium/Low) or `TBD` if unclear. For features/enhancements: always `Enhancement` |
-| 6 | Priority | `TBD` if not specified by user |
-| 7 | Steps | All steps combined into one sentence, e.g. `1. Click X 2. Click Y 3. Observe Z` |
-| 8 | Expected Result | One sentence, no line breaks |
-| 9 | Actual Result | One sentence, no line breaks |
-| 10 | Status | Always `Open` |
-| 11 | Responsible QA | Always `JPB` |
-| 12 | Date | `TBD` if not provided by user (do not invent today's date) |
-| 13 | Attachments | Always `N/A` |
-
-### Hard formatting rules — verify before emitting
-
-1. **Exactly 13 values, exactly 12 tabs.** Before outputting, internally count the tabs. If it's not 12, something is wrong — recount.
-2. **No line breaks anywhere in the row.** Strip all `\n`, `\r`, and any literal tab characters (`\t`) that appear *within* a field's own text (e.g. inside pasted steps) before assembling the row, so they don't get confused with the column-separating tabs.
-3. **No pipes or spaces as separators** — only real tab characters between columns.
-4. Missing metadata → `TBD` in that single column. Never split missing data across multiple columns, never fabricate specifics (dates, IDs, module names) that weren't given or inferable.
-
-## Example
-
-Given: "The save button on the profile page doesn't work when the user has unsaved changes, it just spins forever."
+Claude responds with:
 
 ```
 Title: [Bug] Save button spins indefinitely with unsaved profile changes
 
-Description: On the profile page, clicking the Save button when there are unsaved changes causes the button to enter a permanent loading/spinner state instead of completing the save. This blocks users from persisting profile edits.
+Description: On the profile page, clicking the Save button when there
+are unsaved changes causes the button to enter a permanent
+loading/spinner state instead of completing the save. This blocks
+users from persisting profile edits.
 
 Steps to reproduce / User workflow:
 1. Navigate to the profile page
 2. Modify a profile field (e.g. name or bio)
 3. Click the Save button
 
-Expected result: The save request completes and the button returns to its normal state, confirming the changes were saved.
+Expected result: The save request completes and the button returns to
+its normal state, confirming the changes were saved.
 
-Actual result: The Save button enters a spinner state and never resolves, leaving the user unable to confirm whether changes were saved.
+Actual result: The Save button enters a spinner state and never
+resolves, leaving the user unable to confirm whether changes were saved.
 ```
 
 ```text
 TBD	Save button spins indefinitely with unsaved profile changes	TBD	Web (Chrome, Windows 11)	TBD	TBD	1. Navigate to the profile page 2. Modify a profile field 3. Click the Save button	The save request completes and the button returns to normal, confirming the save.	The Save button spins indefinitely and never resolves.	Open	JPB	TBD	N/A
 ```
+
+Paste the fenced `text` block directly into a spreadsheet — it splits into 13 columns automatically since it's tab-separated.
+
+## Output rules
+
+### GitHub issue
+
+| Field | Rule |
+|---|---|
+| Title | Prefixed with `[Bug]`, `[Feature]`, or `[Enhancement]` |
+| Description | Overview + impact. Any screenshot analysis is folded in here — no separate "Observations"/"Root Cause" sections |
+| Steps to reproduce / User workflow | Numbered list |
+| Expected result | What should happen |
+| Actual result | What currently happens (detailed, element-by-element if a screenshot was provided) |
+
+### TSV row (13 columns, 12 tabs)
+
+| # | Column | Default / rule |
+|---|---|---|
+| 1 | Bug/Feature ID | `TBD` if not given |
+| 2 | Title/Scenario | Short title, no prefix |
+| 3 | Module | `TBD` if not given |
+| 4 | Environment | Always `Web (Chrome, Windows 11)` |
+| 5 | Severity | `Enhancement` for features; inferred or `TBD` for bugs |
+| 6 | Priority | `TBD` if not given |
+| 7 | Steps | Combined into one line, no line breaks |
+| 8 | Expected Result | One line |
+| 9 | Actual Result | One line |
+| 10 | Status | Always `Open` |
+| 11 | Responsible QA | Always `JPB` |
+| 12 | Date | `TBD` if not given |
+| 13 | Attachments | Always `N/A` |
+
+Separator is a real tab character (`\t`) — never spaces or pipes. Missing metadata is `TBD`, never fabricated or split across columns.
+
+## Edge cases
+
+- **Multiple bugs in one message** — only the first/most prominent issue is processed. A short note follows the TSV block asking you to submit the others separately.
+- **Screenshots** — visual analysis (broken layout, error states, wrong data, etc.) is woven into the `Description` and `Actual result` fields rather than given its own section.
+- **Missing metadata** (ID, Module, Priority, Date) — filled with `TBD`, never guessed.
+
+## Repo structure
+
+```
+bug-report-github-jira-excel-format/
+├── SKILL.md                                    # The skill definition (source of truth)
+├── bug-report-github-jira-excel-format.skill   # Packaged, installable skill file
+├── evals/
+│   └── evals.json                              # Test prompts + verifiable expectations
+└── README.md
+```
+
+## Testing
+
+`evals/evals.json` contains test prompts covering a standard bug, a feature request, a report with full metadata provided, and the multi-bug edge case. Each has a list of verifiable expectations (exact tab/column counts, correct defaults, etc.) used to validate the skill's output.
+
+## Author
+
+Built by **John Pritom Biswas**. The `Responsible QA` column defaults to `JPB` for that reason — update `SKILL.md` if you want it to default to someone else's initials instead.
+
+## License
+
+MIT (or update to match your repo's license).
